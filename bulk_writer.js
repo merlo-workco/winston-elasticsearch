@@ -1,5 +1,8 @@
+'use strict';
 const Promise = require('promise');
 const debug = require('debug')('winston:elasticsearch');
+const EventEmitter = require('events');
+const util = require('util');
 
 const BulkWriter = function BulkWriter(client, options) {
   this.client = client;
@@ -44,8 +47,9 @@ BulkWriter.prototype.tick = function tick() {
       // Emulate finally with last .then()
     })
     .catch((e) => {
-      // eslint-disable-next-line no-console
-      console.error(e);
+      // We emit the error but don't throw it again - there is nothing "above" us (as this was
+      // invoked from `setTimeout`) *and* we want to reschedule even in the case of an error.
+      thiz.emit('error', e);
     })
     .then(() => { // finally()
       thiz.schedule();
@@ -86,5 +90,7 @@ BulkWriter.prototype.append = function append(index, type, doc) {
   });
   this.bulk.push(doc);
 };
+
+util.inherits(BulkWriter, EventEmitter);
 
 module.exports = BulkWriter;
